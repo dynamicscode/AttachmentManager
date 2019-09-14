@@ -26,6 +26,8 @@ import { Dialog, DialogType } from 'office-ui-fabric-react/lib/Dialog';
 export interface IAttachmentProps {
     regardingObjectId: string;
     regardingEntityName: string;
+    fileLists: IFileItem[];
+    onAttach: (selectedFiles: IFileItem[]) => void;
 }
 
 export interface IAttachmentState {
@@ -39,13 +41,15 @@ export interface IFileItem {
     fileName: string;
     fileType: string;
     fileUrl: string;
+    iconclassname: string;
 }
 
 const _footerItem: IFileItem = {
     id: 'Id',
     fileName: 'Name',
     fileType: 'Type',
-    fileUrl: ''
+    fileUrl: '',
+    iconclassname: ''
 };
 
 const classNames = mergeStyleSets({
@@ -98,7 +102,7 @@ export class AttachmentManagerApp extends React.Component<IAttachmentProps, IAtt
         });
 
         this.state = {
-            fileLists: this._allFiles,
+            fileLists: this.props.fileLists ? this.props.fileLists : this._allFiles, 
             hiddenModal: true,
             selectedFiles: this.getSelectedFiles()
         };
@@ -143,7 +147,8 @@ export class AttachmentManagerApp extends React.Component<IAttachmentProps, IAtt
                 id: i.toString(),
                 fileName: _lorem(4),
                 fileType: _lorem(4),
-                fileUrl: _lorem(4)
+                fileUrl: _lorem(4),
+                iconclassname: _lorem(4)
             });
         }
     }
@@ -206,7 +211,7 @@ export class AttachmentManagerApp extends React.Component<IAttachmentProps, IAtt
                 name: 'Attach Files',
                 cacheKey: 'myCacheKey',
                 iconProps: {
-                    iconName: 'Add'
+                    iconName: 'Attach'
                 },
                 ariaLabel: 'Attach Files',
                 onClick: this.attachFilesClicked
@@ -216,11 +221,11 @@ export class AttachmentManagerApp extends React.Component<IAttachmentProps, IAtt
 
     private attachFilesClicked(): void {
         this.setState({ hiddenModal: false });
-        console.log(this.state.hiddenModal);
     }
 
     private onAttachClicked(): void {
-        alert(this._selection.getSelectedCount());
+        this.props.onAttach(this.state.selectedFiles);
+        this.setState({ hiddenModal: true });
     }
 
     private onItemInvoked(item: IFileItem): void {
