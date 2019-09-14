@@ -2,11 +2,22 @@ import {IInputs, IOutputs} from "./generated/ManifestTypes";
 import * as React from "react";
 import * as ReactDOM from "react-dom";
 import { AttachmentManagerApp } from "./AttachmentManagerApp";
+import { colGroupProperties } from "@uifabric/utilities";
+import { RGBA_REGEX, CollapseAllVisibility } from "office-ui-fabric-react";
+
+class EntityReference {
+	id: string;
+	typeName: string;
+	constructor(typeName: string, id: string) {
+		this.id = id;
+		this.typeName = typeName;
+	}
+}
 
 export class AttachmentManager implements ComponentFramework.StandardControl<IInputs, IOutputs> {
 
-	private container: HTMLDivElement;
-	private context: ComponentFramework.Context<IInputs>;
+	private _container: HTMLDivElement;
+	private _context: ComponentFramework.Context<IInputs>;
 
 	/**
 	 * Empty constructor.
@@ -16,8 +27,56 @@ export class AttachmentManager implements ComponentFramework.StandardControl<IIn
 
 	}
 
-	private getSharePointDocuments(): void {
-		
+	private async getEmail(id: string) {
+		this._context.webAPI.retrieveRecord("email", id).then(this.renderControl);
+		const email = await this._context.webAPI.retrieveRecord("email", id);
+		return email;
+	}
+
+	private renderControl(): void{
+		console.log("renderControl");
+		ReactDOM.render(
+			React.createElement(AttachmentManagerApp)
+			, this._container
+		);
+	}
+
+	private async getSharePointDocuments(id: string, entityName: string) {
+		const fetchXml: string = `
+		<fetch distinct="false" mapping="logical" returntotalrecordcount="true" page="1" count="100" no-lock="false">
+			<entity name="sharepointdocument">
+				<attribute name="documentid"/>
+				<attribute name="fullname"/>
+				<attribute name="relativelocation"/>
+				<attribute name="sharepointcreatedon"/>
+				<attribute name="ischeckedout"/>
+				<attribute name="filetype"/>
+				<attribute name="modified"/>
+				<attribute name="sharepointmodifiedby"/>
+				<attribute name="servicetype"/>
+				<attribute name="absoluteurl"/>
+				<attribute name="title"/>
+				<attribute name="author"/>
+				<attribute name="sharepointdocumentid"/>
+				<attribute name="readurl"/>
+				<attribute name="editurl"/>
+				<attribute name="locationid"/>
+				<attribute name="iconclassname"/>
+				<attribute name="locationname"/>
+				<order attribute="relativelocation" descending="false"/>
+				<filter>
+					<condition attribute="isrecursivefetch" operator="eq" value="0"/>
+				</filter>
+				<link-entity name="${entityName}" from="${entityName}id" to="regardingobjectid" alias="bb">
+					<filter type="and">
+						<condition attribute="${entityName}id" operator="eq" uitype="${entityName}id" value="${id}"/>
+					</filter>
+				</link-entity>
+			</entity>
+		</fetch>`;
+		const query = `?fetchXml=${encodeURIComponent(fetchXml)}`;
+		const documents = await this._context.webAPI.retrieveMultipleRecords("sharepointdocument", query);
+		return documents.entities;
 	}
 
 	/**
@@ -30,13 +89,28 @@ export class AttachmentManager implements ComponentFramework.StandardControl<IIn
 	 */
 	public init(context: ComponentFramework.Context<IInputs>, notifyOutputChanged: () => void, state: ComponentFramework.Dictionary, container:HTMLDivElement)
 	{
-		this.context = context;
-		this.container = container;
+		this._context = context;
+		this._container = container;
 
-		ReactDOM.render(
-			React.createElement(AttachmentManagerApp)
-			, this.container
+		const regarding: EntityReference = new EntityReference(
+			(<any>this._context).page.entityTypeName,
+			(<any>this._context).page.entityId
 		);
+
+		this.getEmail(regarding.id).then(
+			(e) => {
+				const regardingEntityName:string = e["_regardingobjectid_value@Microsoft.Dynamics.CRM.lookuplogicalname"];
+				const regardingObjectId: string = e["_regardingobjectid_value"];
+		
+				this.getSharePointDocuments(regardingObjectId, regardingEntityName).then(
+					(ec) => {
+						console.log(`No. of documents in SP ${ec.length}`);
+
+						this.renderControl();
+					}
+				);
+			}
+		)
 	}
 
 	/**
@@ -63,6 +137,6 @@ export class AttachmentManager implements ComponentFramework.StandardControl<IIn
 	 */
 	public destroy(): void
 	{
-		ReactDOM.unmountComponentAtNode(this.container);
+		ReactDOM.unmountComponentAtNode(this._container);
 	}
 }
