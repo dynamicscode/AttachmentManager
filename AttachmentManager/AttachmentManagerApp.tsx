@@ -3,6 +3,7 @@ import * as React from 'react';
 import { DefaultButton, PrimaryButton, Stack, IStackTokens, CommandBarButton } from 'office-ui-fabric-react';
 import { initializeIcons } from 'office-ui-fabric-react/lib/Icons';
 import { SearchBox } from 'office-ui-fabric-react/lib/SearchBox';
+import { TextField } from 'office-ui-fabric-react/lib/TextField';
 import { CommandBar } from 'office-ui-fabric-react/lib/CommandBar';
 import {
     DetailsList,
@@ -171,7 +172,7 @@ export class AttachmentManagerApp extends React.Component<IAttachmentProps, IAtt
                         <ScrollablePane scrollbarVisibility={ScrollbarVisibility.auto}>
                             <Sticky stickyPosition={StickyPositionType.Header}>
                                 <Stack horizontal>
-                                    <SearchBox styles={{ root: { width: 250 } }} placeholder="Search file" onChange={this.onFilterChanged} />
+                                    <TextField styles={{ root: { width: 250 } }} placeholder="Search file" onChange={this.onFilterChanged} />
                                     <DefaultButton text="Attach" onClick={this.onAttachClicked} />
                                 </Stack> 
                             </Sticky>
@@ -226,9 +227,10 @@ export class AttachmentManagerApp extends React.Component<IAttachmentProps, IAtt
         alert('Item invoked: ' + item.fileName);
     }
 
-    private onFilterChanged(ev?: React.ChangeEvent<HTMLInputElement>, text?: string): void {
+    private onFilterChanged(ev: React.FormEvent<HTMLElement>, text?: string): void {
         this.setState({
-            fileLists: text ? this._allFiles.filter((item: IFileItem) => hasText(item, text)) : this._allFiles
+            fileLists: text ? this._allFiles.filter((item: IFileItem) => 
+            hasText(item, text)) : this._allFiles
         });
     };
 
