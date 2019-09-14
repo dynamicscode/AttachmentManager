@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <manifest>
-  <control namespace="dynamicscode" constructor="AttachmentManager" version="0.0.1" display-name-key="AttachmentManager" description-key="AttachmentManager description" control-type="standard">
+  <control namespace="dynamicscode" constructor="AttachmentManager" version="0.0.1" display-name-key="AttachmentManager" description-key="A component to allow better user experience in attaching documents from SharePoint, Notes and local files." control-type="standard">
     <!-- property node identifies a specific, configurable piece of data that the control expects from CDS -->
-    <property name="sampleProperty" display-name-key="Property_Display_Key" description-key="Property_Desc_Key" of-type="SingleLine.Text" usage="bound" required="true" />
+    <property name="RegardingId" display-name-key="Regarding Id" description-key="GUID of an associated regarding in the email." of-type="SingleLine.Text" usage="bound" required="true" />
+    <property name="RegardingEntityType" display-name-key="Regarding Entity Type" description-key="Entity schema name of an associated regarding in the email." of-type="SingleLine.Text" usage="bound" required="true" />
     <!-- 
       Property node's of-type attribute can be of-type-group attribute. 
       Example:

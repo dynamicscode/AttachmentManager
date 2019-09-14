@@ -1,6 +1,11 @@
 import {IInputs, IOutputs} from "./generated/ManifestTypes";
+import * as React from "react";
+import * as ReactDOM from "react-dom";
+import { AttachmentManagerApp } from "./AttachmentManagerApp";
 
 export class AttachmentManager implements ComponentFramework.StandardControl<IInputs, IOutputs> {
+
+	private _container: HTMLDivElement;
 
 	/**
 	 * Empty constructor.
@@ -20,7 +25,7 @@ export class AttachmentManager implements ComponentFramework.StandardControl<IIn
 	 */
 	public init(context: ComponentFramework.Context<IInputs>, notifyOutputChanged: () => void, state: ComponentFramework.Dictionary, container:HTMLDivElement)
 	{
-		// Add control initialization code
+		this._container = container;
 	}
 
 
@@ -30,7 +35,10 @@ export class AttachmentManager implements ComponentFramework.StandardControl<IIn
 	 */
 	public updateView(context: ComponentFramework.Context<IInputs>): void
 	{
-		// Add code to update control view
+		ReactDOM.render(
+			React.createElement(AttachmentManagerApp)
+			, this._container
+		);
 	}
 
 	/** 
