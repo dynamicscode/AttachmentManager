@@ -5,7 +5,8 @@ import { AttachmentManagerApp } from "./AttachmentManagerApp";
 
 export class AttachmentManager implements ComponentFramework.StandardControl<IInputs, IOutputs> {
 
-	private _container: HTMLDivElement;
+	private container: HTMLDivElement;
+	private context: ComponentFramework.Context<IInputs>;
 
 	/**
 	 * Empty constructor.
@@ -13,6 +14,10 @@ export class AttachmentManager implements ComponentFramework.StandardControl<IIn
 	constructor()
 	{
 
+	}
+
+	private getSharePointDocuments(): void {
+		
 	}
 
 	/**
@@ -25,9 +30,14 @@ export class AttachmentManager implements ComponentFramework.StandardControl<IIn
 	 */
 	public init(context: ComponentFramework.Context<IInputs>, notifyOutputChanged: () => void, state: ComponentFramework.Dictionary, container:HTMLDivElement)
 	{
-		this._container = container;
-	}
+		this.context = context;
+		this.container = container;
 
+		ReactDOM.render(
+			React.createElement(AttachmentManagerApp)
+			, this.container
+		);
+	}
 
 	/**
 	 * Called when any value in the property bag has changed. This includes field values, data-sets, global values such as container height and width, offline status, control metadata values such as label, visible, etc.
@@ -35,10 +45,7 @@ export class AttachmentManager implements ComponentFramework.StandardControl<IIn
 	 */
 	public updateView(context: ComponentFramework.Context<IInputs>): void
 	{
-		ReactDOM.render(
-			React.createElement(AttachmentManagerApp)
-			, this._container
-		);
+		
 	}
 
 	/** 
@@ -56,6 +63,6 @@ export class AttachmentManager implements ComponentFramework.StandardControl<IIn
 	 */
 	public destroy(): void
 	{
-		// Add code to cleanup control if necessary
+		ReactDOM.unmountComponentAtNode(this.container);
 	}
 }
