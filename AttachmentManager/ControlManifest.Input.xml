@@ -3,7 +3,8 @@
   <control namespace="dynamicscode" constructor="AttachmentManager" version="0.0.1" display-name-key="AttachmentManager" description-key="A component to allow better user experience in attaching documents from SharePoint, Notes and local files." control-type="standard">
     <!-- property node identifies a specific, configurable piece of data that the control expects from CDS -->
     <property name="RegardingId" display-name-key="Regarding Id" description-key="GUID of an associated regarding in the email." of-type="SingleLine.Text" usage="bound" required="true" />
-    <property name="RegardingEntityType" display-name-key="Regarding Entity Type" description-key="Entity schema name of an associated regarding in the email." of-type="SingleLine.Text" usage="bound" required="true" />
+    <property name="SharePointSiteURLs" display-name-key="SharePoint Site URLs" description-key="URLs of SharePoint sites separated by comma." of-type="SingleLine.Text" usage="input" required="true" />
+    <property name="FlowURL" display-name-key="Flow URL" description-key="HTTP endpoint of Microsoft Flow reading file content from SharePoint. Placeholders: {0} - SharePoint Site URL, {1} - File Path." of-type="SingleLine.TextArea" usage="input" required="true" />
     <!-- 
       Property node's of-type attribute can be of-type-group attribute. 
       Example:

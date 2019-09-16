@@ -3,11 +3,19 @@ import * as React from "react";
 import * as ReactDOM from "react-dom";
 import { AttachmentManagerApp, IAttachmentProps, IFileItem } from "./AttachmentManagerApp";
 import { EntityReference, PrimaryEntity, FetchXML } from "./PCFHelper";
+import { http } from "./http";
 
 export class AttachmentManager implements ComponentFramework.StandardControl<IInputs, IOutputs> {
 
-	private _container: HTMLDivElement;
-	private _context: ComponentFramework.Context<IInputs>;
+	private container: HTMLDivElement;
+	private context: ComponentFramework.Context<IInputs>;
+
+	private primaryEntity: PrimaryEntity;
+	private regardingId: string;
+	private notifyOutputChanged: () => void;
+
+	private spSiteLists: string[];
+	private flowUrl: string;
 
 	/**
 	 * Empty constructor.
@@ -16,37 +24,68 @@ export class AttachmentManager implements ComponentFramework.StandardControl<IIn
 
 	}
 
-	private onAttach(selectedFiles: IFileItem[]) {
-		for(let i = 0; i < selectedFiles.length; i++) {
-			console.log(selectedFiles[i].fileUrl);
+	private getFlowUrl(url: string): string {
+		let spFilePath = "", spSiteUrl: string = "";
+		for(let i = 0; i < this.spSiteLists.length; i++) {
+			if (url.indexOf(this.spSiteLists[i]) > -1) {
+				spSiteUrl = encodeURIComponent(this.spSiteLists[i]);
+				spFilePath = encodeURIComponent(url.replace(spSiteUrl, ""));
+				break;
+			}
 		}
+		return this.flowUrl.replace("{0}", spSiteUrl)
+		.replace("{1}", spFilePath);
+	}
+
+	private async onAttach(selectedFiles: IFileItem[]) {
+		for(let i = 0; i < selectedFiles.length; i++) {
+			const fileUrl = selectedFiles[i].fileUrl;
+			console.log(fileUrl);
+
+			this.flowUrl = this.getFlowUrl(fileUrl);
+
+			const data = await http(this.flowUrl);
+			
+			var attachment = {} as any;
+			attachment.body = data["Content"];
+			attachment["objectid_activitypointer@odata.bind"] = `activitypointers(${this.primaryEntity.Entity.id})`;
+			attachment["objecttypecode"] = this.primaryEntity.Entity.typeName;
+			attachment["filename"] = fileUrl.substr(fileUrl.lastIndexOf('/'));
+
+			await this.context.webAPI.createRecord("activitymimeattachment", attachment);
+		}
+
+		this.regardingId = new Date().toTimeString();
+
+		this.notifyOutputChanged();
 	}
 
 	private async getEmail(id: string) {
-		const email = await this._context.webAPI.retrieveRecord("email", id);
+		const email = await this.context.webAPI.retrieveRecord("email", id);
 		return email;
 	}
 
 	private renderControl(ec: ComponentFramework.WebApi.Entity[]): void {
 		console.log("renderControl");
 		let props: IAttachmentProps = {} as IAttachmentProps;
-		props.fileLists = [];
+		props.files = [];
 		props.onAttach = this.onAttach.bind(this);
 
 		for (let i = 0; i < ec.length; i++) {
 			let file: IFileItem = { 
+				key: i,
 				id : i.toString(), 
 				fileName: ec[i]["fullname"],
 				fileUrl: ec[i]["absoluteurl"],
 				fileType: ec[i]["filetype"],
 				iconclassname: ec[i]["iconclassname"]
 			};
-			props.fileLists.push(file);
+			props.files.push(file);
 		}
 		
 		ReactDOM.render(
 			React.createElement(AttachmentManagerApp, props)
-			, this._container
+			, this.container
 		);
 	}
 
@@ -83,8 +122,8 @@ export class AttachmentManager implements ComponentFramework.StandardControl<IIn
 				</link-entity>
 			</entity>
 		</fetch>`;
-		const query = `?fetchXml=${encodeURIComponent(fetchXml)}`;
-		const documents = await this._context.webAPI.retrieveMultipleRecords("sharepointdocument", FetchXML.prepareOptions(fetchXml));
+		
+		const documents = await this.context.webAPI.retrieveMultipleRecords("sharepointdocument", FetchXML.prepareOptions(fetchXml));
 		return documents.entities;
 	}
 
@@ -97,12 +136,26 @@ export class AttachmentManager implements ComponentFramework.StandardControl<IIn
 	 * @param container If a control is marked control-type='standard', it will receive an empty div element within which it can render its content.
 	 */
 	public init(context: ComponentFramework.Context<IInputs>, notifyOutputChanged: () => void, state: ComponentFramework.Dictionary, container: HTMLDivElement) {
-		this._context = context;
-		this._container = container;
+		this.context = context;
+		this.container = container;
+		this.notifyOutputChanged = notifyOutputChanged;
 
-		const me: PrimaryEntity = new PrimaryEntity(this._context);
+		this.primaryEntity = new PrimaryEntity(this.context);
+	}
 
-		this.getEmail(me.Entity.id).then(
+	/**
+	 * Called when any value in the property bag has changed. This includes field values, data-sets, global values such as container height and width, offline status, control metadata values such as label, visible, etc.
+	 * @param context The entire property bag available to control via Context Object; It contains values as set up by the customizer mapped to names defined in the manifest, as well as utility functions
+	 */
+	public updateView(context: ComponentFramework.Context<IInputs>): void {
+		this.context = context;
+
+		this.spSiteLists = (this.context.parameters.SharePointSiteURLs.raw as string).split(',');
+		this.flowUrl = this.context.parameters.FlowURL.raw as string;
+
+		this.primaryEntity = new PrimaryEntity(this.context);
+
+		this.getEmail(this.primaryEntity.Entity.id).then(
 			(e) => {
 				const regarding: EntityReference = EntityReference.get(e, "regardingobjectid")
 
@@ -117,20 +170,14 @@ export class AttachmentManager implements ComponentFramework.StandardControl<IIn
 		)
 	}
 
-	/**
-	 * Called when any value in the property bag has changed. This includes field values, data-sets, global values such as container height and width, offline status, control metadata values such as label, visible, etc.
-	 * @param context The entire property bag available to control via Context Object; It contains values as set up by the customizer mapped to names defined in the manifest, as well as utility functions
-	 */
-	public updateView(context: ComponentFramework.Context<IInputs>): void {
-
-	}
-
 	/** 
 	 * It is called by the framework prior to a control receiving new data. 
 	 * @returns an object based on nomenclature defined in manifest, expecting object[s] for property marked as “bound” or “output”
 	 */
 	public getOutputs(): IOutputs {
-		return {};
+		return {
+			RegardingId : this.regardingId
+		};
 	}
 
 	/** 
@@ -138,6 +185,6 @@ export class AttachmentManager implements ComponentFramework.StandardControl<IIn
 	 * i.e. cancelling any pending remote calls, removing listeners, etc.
 	 */
 	public destroy(): void {
-		ReactDOM.unmountComponentAtNode(this._container);
+		ReactDOM.unmountComponentAtNode(this.container);
 	}
 }

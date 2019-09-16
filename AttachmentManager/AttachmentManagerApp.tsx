@@ -1,9 +1,8 @@
 import * as React from 'react';
 
-import { DefaultButton, PrimaryButton, Stack, IStackTokens, CommandBarButton } from 'office-ui-fabric-react';
+import { DefaultButton, Stack, ProgressIndicator } from 'office-ui-fabric-react';
 import { initializeIcons } from 'office-ui-fabric-react/lib/Icons';
 import { SearchBox } from 'office-ui-fabric-react/lib/SearchBox';
-import { TextField } from 'office-ui-fabric-react/lib/TextField';
 import { CommandBar } from 'office-ui-fabric-react/lib/CommandBar';
 import {
     DetailsList,
@@ -26,17 +25,18 @@ import { Dialog, DialogType } from 'office-ui-fabric-react/lib/Dialog';
 export interface IAttachmentProps {
     regardingObjectId: string;
     regardingEntityName: string;
-    fileLists: IFileItem[];
-    onAttach: (selectedFiles: IFileItem[]) => void;
+    files: IFileItem[];
+    onAttach: (selectedFiles: IFileItem[]) => Promise<void>;
 }
 
 export interface IAttachmentState {
-    fileLists: IFileItem[];
+    files: IFileItem[];
     hiddenModal: boolean;
-    selectedFiles: IFileItem[];
+    isInProgress: boolean;
 }
 
 export interface IFileItem {
+    key: number | string;
     id: string;
     fileName: string;
     fileType: string;
@@ -45,6 +45,7 @@ export interface IFileItem {
 }
 
 const _footerItem: IFileItem = {
+    key: 'Key',
     id: 'Id',
     fileName: 'Name',
     fileType: 'Type',
@@ -97,19 +98,24 @@ export class AttachmentManagerApp extends React.Component<IAttachmentProps, IAtt
         this._addItems();
         this._setColumns();
 
-        this._selection = new Selection({
-            onSelectionChanged: () => this.setState({ selectedFiles: this.getSelectedFiles() })
-        });
+        this._selection = new Selection();
 
+        if (this.props.files) {
+            this._allFiles = this.props.files;
+         } else { 
+             this._addItems();
+        };
+        
         this.state = {
-            fileLists: this.props.fileLists ? this.props.fileLists : this._allFiles, 
+            files: this._allFiles,
             hiddenModal: true,
-            selectedFiles: this.getSelectedFiles()
+            isInProgress: false
         };
 
         this.attachFilesClicked = this.attachFilesClicked.bind(this);
         this.onFilterChanged = this.onFilterChanged.bind(this);
         this.onAttachClicked = this.onAttachClicked.bind(this);
+        this.hideDialog = this.hideDialog.bind(this);
     }
 
     private _setColumns(): void {
@@ -144,6 +150,7 @@ export class AttachmentManagerApp extends React.Component<IAttachmentProps, IAtt
         this._allFiles = [];
         for (let i = 1; i < 31; i++) {
             this._allFiles.push({
+                key: i,
                 id: i.toString(),
                 fileName: _lorem(4),
                 fileType: _lorem(4),
@@ -154,7 +161,7 @@ export class AttachmentManagerApp extends React.Component<IAttachmentProps, IAtt
     }
 
     public render(): JSX.Element {
-        const { hiddenModal: hiddenDialog, fileLists, selectedFiles } = this.state;
+        const { hiddenModal: hiddenDialog, files } = this.state;
         return (
             <div>
                 <CommandBar
@@ -173,17 +180,24 @@ export class AttachmentManagerApp extends React.Component<IAttachmentProps, IAtt
                     }}
                     minWidth='800px'
                 >
-                    <div style={{ 'height': '600px' }}>
+                    <div style={{ 'height': '400px' }}>
                         <ScrollablePane scrollbarVisibility={ScrollbarVisibility.auto}>
                             <Sticky stickyPosition={StickyPositionType.Header}>
-                                <Stack horizontal>
-                                    <TextField styles={{ root: { width: 250 } }} placeholder="Search file" onChange={this.onFilterChanged} />
-                                    <DefaultButton text="Attach" onClick={this.onAttachClicked} />
-                                </Stack> 
+                                <Stack horizontal tokens={{childrenGap: 20, padding:10}}>
+                                    <Stack.Item>
+                                        <DefaultButton text="Attach" onClick={this.onAttachClicked} />
+                                    </Stack.Item>
+                                    <Stack.Item grow align="stretch">
+                                        <SearchBox styles={{ root: { width: '100%' } }} placeholder="Search file" onChange={this.onFilterChanged} />
+                                    </Stack.Item>
+                                </Stack>
+                                <Stack>
+                                    { this.state.isInProgress && <ProgressIndicator label="In progress" description="Copying files from SharePoint to an email" /> }
+                                </Stack>
                             </Sticky>
                             <MarqueeSelection selection={this._selection}>
                                 <DetailsList
-                                    items={fileLists}
+                                    items={files}
                                     columns={this._columns}
                                     setKey="set"
                                     layoutMode={DetailsListLayoutMode.fixedColumns}
@@ -220,28 +234,30 @@ export class AttachmentManagerApp extends React.Component<IAttachmentProps, IAtt
     }
 
     private attachFilesClicked(): void {
-        this.setState({ hiddenModal: false });
+        this.setState({ hiddenModal: false, isInProgress : false });
     }
 
     private onAttachClicked(): void {
-        this.props.onAttach(this.state.selectedFiles);
-        this.setState({ hiddenModal: true });
+        this.setState({isInProgress : true});
+        this.props.onAttach(this.getSelectedFiles()).then(this.hideDialog);
+    }
+
+    private hideDialog(): void {
+        this.setState({hiddenModal:true});
     }
 
     private onItemInvoked(item: IFileItem): void {
-        alert('Item invoked: ' + item.fileName);
+        //alert('Item invoked: ' + item.fileName);
     }
 
-    private onFilterChanged(ev: React.FormEvent<HTMLElement>, text?: string): void {
+    private onFilterChanged(ev?: React.ChangeEvent<HTMLInputElement>, text?: string): void {
         this.setState({
-            fileLists: text ? this._allFiles.filter((item: IFileItem) => 
+            files: text ? this._allFiles.filter((item: IFileItem) => 
             hasText(item, text)) : this._allFiles
         });
     };
 
     private getSelectedFiles(): IFileItem[] {
-        //const selectionCount = this._selection.getSelectedCount();
-
         let selectedFileId: IFileItem[];
         selectedFileId = [];
         var fileUrl = '';
