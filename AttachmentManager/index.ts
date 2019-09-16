@@ -78,7 +78,9 @@ export class AttachmentManager implements ComponentFramework.StandardControl<IIn
 				fileName: ec[i]["fullname"],
 				fileUrl: ec[i]["absoluteurl"],
 				fileType: ec[i]["filetype"],
-				iconclassname: ec[i]["iconclassname"]
+				iconclassname: this.getFabricIcon(ec[i]["iconclassname"]),
+				lastModifiedOn: new Date(ec[i]["modified"]).toLocaleDateString(),
+				lastModifiedBy: ec[i]["sharepointmodifiedby"]
 			};
 			props.files.push(file);
 		}
@@ -87,6 +89,22 @@ export class AttachmentManager implements ComponentFramework.StandardControl<IIn
 			React.createElement(AttachmentManagerApp, props)
 			, this.container
 		);
+	}
+
+	private getFabricIcon(name: string): string {
+		if (name.indexOf("excel") > -1)
+			return "ExcelDocument";
+		else if (name.indexOf("word") > -1)
+			return "WordDocument";
+		else if (name.indexOf("powerPoint") > -1)
+			return "PowerPointDocument";
+		else if (name.indexOf("pdf") > -1)
+			return "PDF";
+		else if (name.indexOf("image") > -1)
+			return "FileImage";
+		else if (name.indexOf("text") > -1)
+			return "TextDocument";
+		return name;
 	}
 
 	private async getSharePointDocuments(id: string, entityName: string) {

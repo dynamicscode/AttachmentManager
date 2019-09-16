@@ -41,17 +41,21 @@ export interface IFileItem {
     fileName: string;
     fileType: string;
     fileUrl: string;
+    lastModifiedOn?: string;
+    lastModifiedBy?: string;
     iconclassname: string;
 }
 
-const _footerItem: IFileItem = {
-    key: 'Key',
-    id: 'Id',
-    fileName: 'Name',
-    fileType: 'Type',
-    fileUrl: '',
-    iconclassname: ''
-};
+// const _footerItem: IFileItem = {
+//     key: 'Key',
+//     id: 'Id',
+//     fileName: 'Name',
+//     fileType: 'Type',
+//     fileUrl: '',
+//     lastModifiedOn: 'Last Modified On',
+//     iconclassname: '',
+//     lastModifiedBy: 'Last Modified By'
+// };
 
 const classNames = mergeStyleSets({
     wrapper: {
@@ -121,12 +125,12 @@ export class AttachmentManagerApp extends React.Component<IAttachmentProps, IAtt
     private _setColumns(): void {
         this._columns = [];
         this._columns.push({
-            key: 'id',
-            name: 'Id',
-            fieldName: 'id',
-            minWidth: 100,
-            maxWidth: 200,
-            isResizable: true
+            key: 'icon',
+            name: '',
+            fieldName: 'iconclassname',
+            minWidth: 20,
+            maxWidth: 40,
+            isResizable: false
         });
         this._columns.push({
             key: 'fileName',
@@ -140,6 +144,22 @@ export class AttachmentManagerApp extends React.Component<IAttachmentProps, IAtt
             key: 'fileType',
             name: 'File Type',
             fieldName: 'fileType',
+            minWidth: 50,
+            maxWidth: 50,
+            isResizable: true
+        });
+        this._columns.push({
+            key: 'lastModifiedOn',
+            name: 'Last Modified On',
+            fieldName: 'lastModifiedOn',
+            minWidth: 100,
+            maxWidth: 200,
+            isResizable: true
+        });
+        this._columns.push({
+            key: 'lastModifiedBy',
+            name: 'Last Modified By',
+            fieldName: 'lastModifiedBy',
             minWidth: 100,
             maxWidth: 200,
             isResizable: true
@@ -203,7 +223,7 @@ export class AttachmentManagerApp extends React.Component<IAttachmentProps, IAtt
                                     layoutMode={DetailsListLayoutMode.fixedColumns}
                                     constrainMode={ConstrainMode.unconstrained}
                                     onRenderDetailsHeader={onRenderDetailsHeader}
-                                    onRenderDetailsFooter={onRenderDetailsFooter}
+                                    //onRenderDetailsFooter={onRenderDetailsFooter}
                                     selection={this._selection}
                                     selectionPreservedOnEmptyClick={true}
                                     ariaLabelForSelectionColumn="Toggle selection"
@@ -285,19 +305,19 @@ function onRenderDetailsHeader(
     );
 }
 
-function onRenderDetailsFooter(props?: IDetailsFooterProps, defaultRender?: IRenderFunction<IDetailsFooterProps>): JSX.Element {
-    return (
-        <Sticky stickyPosition={StickyPositionType.Footer} isScrollSynced={true}>
-            <div className={classNames.row}>
-                <DetailsRow
-                    columns={props!.columns}
-                    item={_footerItem}
-                    itemIndex={-1}
-                    selection={props!.selection}
-                    selectionMode={(props!.selection && props!.selection.mode) || SelectionMode.none}
-                    viewport={props!.viewport}
-                />
-            </div>
-        </Sticky>
-    );
-}
+// function onRenderDetailsFooter(props?: IDetailsFooterProps, defaultRender?: IRenderFunction<IDetailsFooterProps>): JSX.Element {
+//     return (
+//         <Sticky stickyPosition={StickyPositionType.Footer} isScrollSynced={true}>
+//             <div className={classNames.row}>
+//                 <DetailsRow
+//                     columns={props!.columns}
+//                     item={_footerItem}
+//                     itemIndex={-1}
+//                     selection={props!.selection}
+//                     selectionMode={(props!.selection && props!.selection.mode) || SelectionMode.none}
+//                     viewport={props!.viewport}
+//                 />
+//             </div>
+//         </Sticky>
+//     );
+// }
