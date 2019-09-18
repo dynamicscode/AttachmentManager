@@ -1,9 +1,12 @@
 import { IInputs, IOutputs } from "./generated/ManifestTypes";
 import * as React from "react";
 import * as ReactDOM from "react-dom";
-import { AttachmentManagerApp, IAttachmentProps, IFileItem } from "./AttachmentManagerApp";
-import { EntityReference, PrimaryEntity, FetchXML } from "./PCFHelper";
+import { AttachmentManagerApp, IAttachmentProps } from "./AttachmentManagerApp";
+import { EntityReference, PrimaryEntity, isInHarness, SharePointHelper } from "./PCFHelper";
 import { http } from "./http";
+import { IFileItem } from "./ItemList";
+import { IconMapper } from "./IconMapper";
+import { Email, SharePointDocument, ActivityMimeAttachment } from "./Entity";
 
 export class AttachmentManager implements ComponentFramework.StandardControl<IInputs, IOutputs> {
 
@@ -14,8 +17,8 @@ export class AttachmentManager implements ComponentFramework.StandardControl<IIn
 	private regardingId: string;
 	private notifyOutputChanged: () => void;
 
-	private spSiteLists: string[];
-	private flowUrl: string;
+	private iconMapper: IconMapper;
+	private spHelper: SharePointHelper;
 
 	/**
 	 * Empty constructor.
@@ -24,45 +27,23 @@ export class AttachmentManager implements ComponentFramework.StandardControl<IIn
 
 	}
 
-	private getFlowUrl(url: string): string {
-		let spFilePath = "", spSiteUrl: string = "";
-		for(let i = 0; i < this.spSiteLists.length; i++) {
-			if (url.indexOf(this.spSiteLists[i]) > -1) {
-				spSiteUrl = encodeURIComponent(this.spSiteLists[i]);
-				spFilePath = encodeURIComponent(url.replace(spSiteUrl, ""));
-				break;
-			}
-		}
-		return this.flowUrl.replace("{0}", spSiteUrl)
-		.replace("{1}", spFilePath);
-	}
-
 	private async onAttach(selectedFiles: IFileItem[]) {
-		for(let i = 0; i < selectedFiles.length; i++) {
+		let apiUrl: string;
+		for (let i = 0; i < selectedFiles.length; i++) {
 			const fileUrl = selectedFiles[i].fileUrl;
 			console.log(fileUrl);
 
-			this.flowUrl = this.getFlowUrl(fileUrl);
+			apiUrl = this.spHelper.makeApiUrl(fileUrl);
 
-			const data = await http(this.flowUrl);
-			
-			var attachment = {} as any;
-			attachment.body = data["Content"];
-			attachment["objectid_activitypointer@odata.bind"] = `activitypointers(${this.primaryEntity.Entity.id})`;
-			attachment["objecttypecode"] = this.primaryEntity.Entity.typeName;
-			attachment["filename"] = fileUrl.substr(fileUrl.lastIndexOf('/'));
+			const data = await http(apiUrl);
 
-			await this.context.webAPI.createRecord("activitymimeattachment", attachment);
+			ActivityMimeAttachment.create(data["Content"],
+			this.primaryEntity.Entity, fileUrl.substr(fileUrl.lastIndexOf('/')), this.context);
 		}
 
 		this.regardingId = new Date().toTimeString();
 
 		this.notifyOutputChanged();
-	}
-
-	private async getEmail(id: string) {
-		const email = await this.context.webAPI.retrieveRecord("email", id);
-		return email;
 	}
 
 	private renderControl(ec: ComponentFramework.WebApi.Entity[]): void {
@@ -72,77 +53,32 @@ export class AttachmentManager implements ComponentFramework.StandardControl<IIn
 		props.onAttach = this.onAttach.bind(this);
 
 		for (let i = 0; i < ec.length; i++) {
-			let file: IFileItem = { 
+			let file: IFileItem = {
 				key: i,
-				id : i.toString(), 
-				fileName: ec[i]["fullname"],
-				fileUrl: ec[i]["absoluteurl"],
-				fileType: ec[i]["filetype"],
-				iconclassname: this.getFabricIcon(ec[i]["iconclassname"]),
-				lastModifiedOn: new Date(ec[i]["modified"]).toLocaleDateString(),
-				lastModifiedBy: ec[i]["sharepointmodifiedby"]
+				id: i.toString(),
+				fileName: ec[i][SharePointDocument.FullName],
+				fileUrl: ec[i][SharePointDocument.AbsoluteUrl],
+				fileType: ec[i][SharePointDocument.FileType],
+				iconclassname: this.iconMapper.getBySharePointIcon(ec[i][SharePointDocument.IconClassName]),
+				lastModifiedOn: new Date(ec[i][SharePointDocument.LastModifiedOn]),
+				lastModifiedBy: ec[i][SharePointDocument.LastModifiedBy]
 			};
 			props.files.push(file);
 		}
-		
+
 		ReactDOM.render(
 			React.createElement(AttachmentManagerApp, props)
 			, this.container
 		);
 	}
 
-	private getFabricIcon(name: string): string {
-		if (name.indexOf("excel") > -1)
-			return "ExcelDocument";
-		else if (name.indexOf("word") > -1)
-			return "WordDocument";
-		else if (name.indexOf("powerPoint") > -1)
-			return "PowerPointDocument";
-		else if (name.indexOf("pdf") > -1)
-			return "PDF";
-		else if (name.indexOf("image") > -1)
-			return "FileImage";
-		else if (name.indexOf("text") > -1)
-			return "TextDocument";
-		return name;
-	}
-
-	private async getSharePointDocuments(id: string, entityName: string) {
-		const fetchXml: string = `
-		<fetch distinct="false" mapping="logical" returntotalrecordcount="true" page="1" count="100" no-lock="false">
-			<entity name="sharepointdocument">
-				<attribute name="documentid"/>
-				<attribute name="fullname"/>
-				<attribute name="relativelocation"/>
-				<attribute name="sharepointcreatedon"/>
-				<attribute name="ischeckedout"/>
-				<attribute name="filetype"/>
-				<attribute name="modified"/>
-				<attribute name="sharepointmodifiedby"/>
-				<attribute name="servicetype"/>
-				<attribute name="absoluteurl"/>
-				<attribute name="title"/>
-				<attribute name="author"/>
-				<attribute name="sharepointdocumentid"/>
-				<attribute name="readurl"/>
-				<attribute name="editurl"/>
-				<attribute name="locationid"/>
-				<attribute name="iconclassname"/>
-				<attribute name="locationname"/>
-				<order attribute="relativelocation" descending="false"/>
-				<filter>
-					<condition attribute="isrecursivefetch" operator="eq" value="0"/>
-				</filter>
-				<link-entity name="${entityName}" from="${entityName}id" to="regardingobjectid" alias="bb">
-					<filter type="and">
-						<condition attribute="${entityName}id" operator="eq" uitype="${entityName}id" value="${id}"/>
-					</filter>
-				</link-entity>
-			</entity>
-		</fetch>`;
-		
-		const documents = await this.context.webAPI.retrieveMultipleRecords("sharepointdocument", FetchXML.prepareOptions(fetchXml));
-		return documents.entities;
+	private renderControlWithMockData(): void {
+		console.log("renderControl");
+		let props: IAttachmentProps = {} as IAttachmentProps;
+		ReactDOM.render(
+			React.createElement(AttachmentManagerApp, props)
+			, this.container
+		);
 	}
 
 	/**
@@ -159,6 +95,9 @@ export class AttachmentManager implements ComponentFramework.StandardControl<IIn
 		this.notifyOutputChanged = notifyOutputChanged;
 
 		this.primaryEntity = new PrimaryEntity(this.context);
+		this.iconMapper = new IconMapper();
+
+		this.spHelper = new SharePointHelper(this.context.parameters.SharePointSiteURLs.raw as string, this.context.parameters.FlowURL.raw as string);
 	}
 
 	/**
@@ -168,24 +107,25 @@ export class AttachmentManager implements ComponentFramework.StandardControl<IIn
 	public updateView(context: ComponentFramework.Context<IInputs>): void {
 		this.context = context;
 
-		this.spSiteLists = (this.context.parameters.SharePointSiteURLs.raw as string).split(',');
-		this.flowUrl = this.context.parameters.FlowURL.raw as string;
-
 		this.primaryEntity = new PrimaryEntity(this.context);
 
-		this.getEmail(this.primaryEntity.Entity.id).then(
-			(e) => {
-				const regarding: EntityReference = EntityReference.get(e, "regardingobjectid")
+		if (isInHarness()) {
+			this.renderControlWithMockData();
+		} else {
+			Email.getById(this.primaryEntity.Entity.id, this.context).then(
+				(e) => {
+					const regarding: EntityReference = EntityReference.get(e, Email.RegardingObject)
 
-				this.getSharePointDocuments(regarding.id, regarding.typeName).then(
-					(ec) => {
-						console.log(`No. of documents in SP ${ec.length}`);
+					SharePointDocument.getByRegarding(regarding.id, regarding.typeName, this.context).then(
+						(ec) => {
+							console.log(`No. of documents in SP ${ec.length}`);
 
-						this.renderControl(ec);
-					}
-				);
-			}
-		)
+							this.renderControl(ec);
+						}
+					);
+				}
+			)
+		}
 	}
 
 	/** 
@@ -194,7 +134,7 @@ export class AttachmentManager implements ComponentFramework.StandardControl<IIn
 	 */
 	public getOutputs(): IOutputs {
 		return {
-			RegardingId : this.regardingId
+			RegardingId: this.regardingId
 		};
 	}
 

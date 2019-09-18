@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import { DefaultButton, Stack, ProgressIndicator } from 'office-ui-fabric-react';
+import { DefaultButton, Stack, ProgressIndicator, Icon } from 'office-ui-fabric-react';
 import { initializeIcons } from 'office-ui-fabric-react/lib/Icons';
 import { SearchBox } from 'office-ui-fabric-react/lib/SearchBox';
 import { CommandBar } from 'office-ui-fabric-react/lib/CommandBar';
@@ -10,17 +10,15 @@ import {
     IDetailsHeaderProps,
     Selection,
     IColumn,
-    ConstrainMode,
-    IDetailsFooterProps,
-    DetailsRow
+    ConstrainMode
 } from 'office-ui-fabric-react/lib/DetailsList';
 import { IRenderFunction } from 'office-ui-fabric-react/lib/Utilities';
 import { ScrollablePane, ScrollbarVisibility } from 'office-ui-fabric-react/lib/ScrollablePane';
 import { Sticky, StickyPositionType } from 'office-ui-fabric-react/lib/Sticky';
 import { MarqueeSelection } from 'office-ui-fabric-react/lib/MarqueeSelection';
-import { SelectionMode } from 'office-ui-fabric-react/lib/Selection';
-import { mergeStyleSets } from 'office-ui-fabric-react/lib/Styling';
 import { Dialog, DialogType } from 'office-ui-fabric-react/lib/Dialog';
+import { IFileItem, ItemList } from './ItemList';
+import { classNames } from './ComponentStyles';
 
 export interface IAttachmentProps {
     regardingObjectId: string;
@@ -31,89 +29,31 @@ export interface IAttachmentProps {
 
 export interface IAttachmentState {
     files: IFileItem[];
+    columns: IColumn[];
     hiddenModal: boolean;
     isInProgress: boolean;
 }
 
-export interface IFileItem {
-    key: number | string;
-    id: string;
-    fileName: string;
-    fileType: string;
-    fileUrl: string;
-    lastModifiedOn?: string;
-    lastModifiedBy?: string;
-    iconclassname: string;
-}
-
-// const _footerItem: IFileItem = {
-//     key: 'Key',
-//     id: 'Id',
-//     fileName: 'Name',
-//     fileType: 'Type',
-//     fileUrl: '',
-//     lastModifiedOn: 'Last Modified On',
-//     iconclassname: '',
-//     lastModifiedBy: 'Last Modified By'
-// };
-
-const classNames = mergeStyleSets({
-    wrapper: {
-        height: '80vh',
-        position: 'relative'
-    },
-    filter: {
-        paddingBottom: 20,
-        maxWidth: 300
-    },
-    header: {
-        margin: 0
-    },
-    row: {
-        display: 'inline-block'
-    }
-});
-
-const LOREM_IPSUM = (
-    'lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut ' +
-    'labore et dolore magna aliqua ut enim ad minim veniam quis nostrud exercitation ullamco laboris nisi ut ' +
-    'aliquip ex ea commodo consequat duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore ' +
-    'eu fugiat nulla pariatur excepteur sint occaecat cupidatat non proident sunt in culpa qui officia deserunt '
-).split(' ');
-
-let loremIndex = 0;
-
-function _lorem(wordCount: number): string {
-    const startIndex = loremIndex + wordCount > LOREM_IPSUM.length ? 0 : loremIndex;
-    loremIndex = startIndex + wordCount;
-    return LOREM_IPSUM.slice(startIndex, loremIndex).join(' ');
-}
-
 export class AttachmentManagerApp extends React.Component<IAttachmentProps, IAttachmentState> {
-    private _selection: Selection;
-    private _allFiles: IFileItem[];
-    private _columns: IColumn[];
+    private selection: Selection;
+    private allFiles: ItemList;
 
     constructor(props: IAttachmentProps) {
         super(props)
 
         initializeIcons();
 
-        this._addItems();
-        this._setColumns();
+        this.allFiles = new ItemList();
 
-        this._selection = new Selection();
+        this.selection = new Selection();
 
-        if (this.props.files) {
-            this._allFiles = this.props.files;
-         } else { 
-             this._addItems();
-        };
+        this.allFiles.setItems(this.props.files);
         
         this.state = {
-            files: this._allFiles,
+            files: this.allFiles.getItems(),
             hiddenModal: true,
-            isInProgress: false
+            isInProgress: false,
+            columns: this.allFiles.getColumns()
         };
 
         this.attachFilesClicked = this.attachFilesClicked.bind(this);
@@ -122,66 +62,8 @@ export class AttachmentManagerApp extends React.Component<IAttachmentProps, IAtt
         this.hideDialog = this.hideDialog.bind(this);
     }
 
-    private _setColumns(): void {
-        this._columns = [];
-        this._columns.push({
-            key: 'icon',
-            name: '',
-            fieldName: 'iconclassname',
-            minWidth: 20,
-            maxWidth: 40,
-            isResizable: false
-        });
-        this._columns.push({
-            key: 'fileName',
-            name: 'File Name',
-            fieldName: 'fileName',
-            minWidth: 100,
-            maxWidth: 200,
-            isResizable: true
-        });
-        this._columns.push({
-            key: 'fileType',
-            name: 'File Type',
-            fieldName: 'fileType',
-            minWidth: 50,
-            maxWidth: 50,
-            isResizable: true
-        });
-        this._columns.push({
-            key: 'lastModifiedOn',
-            name: 'Last Modified On',
-            fieldName: 'lastModifiedOn',
-            minWidth: 100,
-            maxWidth: 200,
-            isResizable: true
-        });
-        this._columns.push({
-            key: 'lastModifiedBy',
-            name: 'Last Modified By',
-            fieldName: 'lastModifiedBy',
-            minWidth: 100,
-            maxWidth: 200,
-            isResizable: true
-        });
-    }
-
-    private _addItems(): void {
-        this._allFiles = [];
-        for (let i = 1; i < 31; i++) {
-            this._allFiles.push({
-                key: i,
-                id: i.toString(),
-                fileName: _lorem(4),
-                fileType: _lorem(4),
-                fileUrl: _lorem(4),
-                iconclassname: _lorem(4)
-            });
-        }
-    }
-
     public render(): JSX.Element {
-        const { hiddenModal: hiddenDialog, files } = this.state;
+        const { hiddenModal: hiddenDialog, files, columns } = this.state;
         return (
             <div>
                 <CommandBar
@@ -198,9 +80,9 @@ export class AttachmentManagerApp extends React.Component<IAttachmentProps, IAtt
                     modalProps={{
                         isBlocking: false,
                     }}
-                    minWidth='800px'
+                    minWidth='900px'
                 >
-                    <div style={{ 'height': '400px' }}>
+                    <div className={classNames.wrapper}>
                         <ScrollablePane scrollbarVisibility={ScrollbarVisibility.auto}>
                             <Sticky stickyPosition={StickyPositionType.Header}>
                                 <Stack horizontal tokens={{childrenGap: 20, padding:10}}>
@@ -215,16 +97,16 @@ export class AttachmentManagerApp extends React.Component<IAttachmentProps, IAtt
                                     { this.state.isInProgress && <ProgressIndicator label="In progress" description="Copying files from SharePoint to an email" /> }
                                 </Stack>
                             </Sticky>
-                            <MarqueeSelection selection={this._selection}>
+                            <MarqueeSelection selection={this.selection}>
                                 <DetailsList
                                     items={files}
-                                    columns={this._columns}
+                                    columns={columns}
                                     setKey="set"
                                     layoutMode={DetailsListLayoutMode.fixedColumns}
                                     constrainMode={ConstrainMode.unconstrained}
+                                    onRenderItemColumn={renderItemColumn}
                                     onRenderDetailsHeader={onRenderDetailsHeader}
-                                    //onRenderDetailsFooter={onRenderDetailsFooter}
-                                    selection={this._selection}
+                                    selection={this.selection}
                                     selectionPreservedOnEmptyClick={true}
                                     ariaLabelForSelectionColumn="Toggle selection"
                                     ariaLabelForSelectAllCheckbox="Toggle selection for all items"
@@ -267,26 +149,24 @@ export class AttachmentManagerApp extends React.Component<IAttachmentProps, IAtt
     }
 
     private onItemInvoked(item: IFileItem): void {
-        //alert('Item invoked: ' + item.fileName);
+        console.log('Item invoked: ' + item.fileName);
     }
 
     private onFilterChanged(ev?: React.ChangeEvent<HTMLInputElement>, text?: string): void {
         this.setState({
-            files: text ? this._allFiles.filter((item: IFileItem) => 
-            hasText(item, text)) : this._allFiles
+            files: text ? this.state.files.filter((item: IFileItem) => 
+            hasText(item, text)) : this.state.files
         });
     };
 
     private getSelectedFiles(): IFileItem[] {
-        let selectedFileId: IFileItem[];
-        selectedFileId = [];
-        var fileUrl = '';
+        let selectedFiles: IFileItem[] = [];
 
-        for(let i = 0; i < this._selection.getSelectedCount(); i++) {
-            selectedFileId.push((this._selection.getSelection()[i] as IFileItem));
+        for(let i = 0; i < this.selection.getSelectedCount(); i++) {
+            selectedFiles.push((this.selection.getSelection()[i] as IFileItem));
         }
 
-        return selectedFileId;
+        return selectedFiles;
     }
 }
 
@@ -305,19 +185,22 @@ function onRenderDetailsHeader(
     );
 }
 
-// function onRenderDetailsFooter(props?: IDetailsFooterProps, defaultRender?: IRenderFunction<IDetailsFooterProps>): JSX.Element {
-//     return (
-//         <Sticky stickyPosition={StickyPositionType.Footer} isScrollSynced={true}>
-//             <div className={classNames.row}>
-//                 <DetailsRow
-//                     columns={props!.columns}
-//                     item={_footerItem}
-//                     itemIndex={-1}
-//                     selection={props!.selection}
-//                     selectionMode={(props!.selection && props!.selection.mode) || SelectionMode.none}
-//                     viewport={props!.viewport}
-//                 />
-//             </div>
-//         </Sticky>
-//     );
-// }
+function renderItemColumn(item: IFileItem, index?: number, column?: IColumn) {
+    if (column) {
+        const fieldContent = item[column.fieldName as keyof IFileItem] as string;
+
+        switch (column.key) {
+            case 'iconclassname':
+                return <Icon iconName={fieldContent} className={classNames.fileIcon}></Icon>;
+            case 'lastModifiedOn':
+                const dateField = item[column.fieldName as keyof IFileItem] as Date;
+                return <div>{dateField.toLocaleDateString('en-nz')} {dateField.toLocaleTimeString('en-nz')}</div>;
+            case 'fileType':
+            case 'fileName':
+            case 'lastModifiedBy':
+                return <div>{fieldContent}</div>;
+            default:
+                break;
+        }
+    }
+}

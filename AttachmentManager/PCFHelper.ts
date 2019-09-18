@@ -30,3 +30,28 @@ export class FetchXML {
         return `?fetchXml=${encodeURIComponent(fetchXml)}`;
     }
 }
+
+export const isInHarness = (): boolean => {
+    return window.location.href.indexOf(".dynamics.com") < 0;
+}
+
+export class SharePointHelper {
+    private spList: string[];
+    private apiUrl: string;
+    constructor(site: string, apiUrl: string) {
+        this.spList = site.split(',');
+        this.apiUrl = apiUrl;
+    }
+    public makeApiUrl(url: string): string {
+        let spFilePath = "", spSiteUrl: string = "";
+        for (let i = 0; i < this.spList.length; i++) {
+            if (url.indexOf(this.spList[i]) > -1) {
+                spSiteUrl = encodeURIComponent(this.spList[i]);
+                spFilePath = encodeURIComponent(url.replace(this.spList[i], ""));
+                break;
+            }
+        }
+        return this.apiUrl.replace("{0}", spSiteUrl)
+            .replace("{1}", spFilePath);
+    }
+}
