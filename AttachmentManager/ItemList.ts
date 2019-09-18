@@ -27,7 +27,7 @@ export class ItemList {
     private setColumns(): void {
         this.columns = [];
         this.columns.push({
-            key: 'icon',
+            key: 'iconclassname',
             name: '',
             fieldName: 'iconclassname',
             minWidth: 20,
